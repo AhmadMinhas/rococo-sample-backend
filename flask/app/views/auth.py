@@ -82,6 +82,23 @@ class ForgotPassword(Resource):
         return get_success_response(message="Password reset email sent successfully.")
 
 
+@auth_api.route('/resend-verification-email', doc=dict(description="Send reset password link"))
+class ResendEmailVerificationNotification(Resource):
+    @auth_api.expect(
+        {'type': 'object', 'properties': {
+            'email': {'type': 'string'}
+        }}
+    )
+    def post(self):
+        parsed_body = parse_request_body(request, ['email'])
+        validate_required_fields(parsed_body)
+
+        auth_service = AuthService(config)
+        auth_service.send_welcome_email(parsed_body.get('email'))
+
+        return get_success_response(message="Verification Email Notification sent successfully.")
+
+
 @auth_api.route(
     '/reset_password/<string:token>/<string:uidb64>',
     doc=dict(description="Update the password using reset password link")
@@ -101,6 +118,22 @@ class ResetPassword(Resource):
         return get_success_response(
             message="Your password has been updated!", 
             access_token=access_token, 
+            expiry=expiry,
+            person=person_obj.as_dict()
+        )
+
+
+@auth_api.route(
+    '/verify_email/<string:token>/<string:uidb64>',
+    doc=dict(description="verify the email using reset verification link")
+)
+class VerifyEmail(Resource):
+    def post(self, token, uidb64):
+        auth_service = AuthService(config)
+        access_token, expiry, person_obj = auth_service.verify_email(token, uidb64)
+        return get_success_response(
+            message="Your Email has been Verified!",
+            access_token=access_token,
             expiry=expiry,
             person=person_obj.as_dict()
         )
