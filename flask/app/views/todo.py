@@ -13,7 +13,7 @@ todo_model = todo_api.model('Todo', {
 })
 
 todo_filter_model = reqparse.RequestParser()
-todo_filter_model.add_argument('status', choices=('active', 'inactive', 'all'), default='all')
+todo_filter_model.add_argument('status', choices=('completed', 'pending', 'all'), default='all')
 
 todo_update_model = todo_api.model('TodoUpdate', {
     'is_deleted': fields.Boolean(description='Delete status of the todo task'),
@@ -30,7 +30,7 @@ class TodoList(Resource):
         # Retrieve query parameters
         args = todo_filter_model.parse_args()
         # Call the service to list todos by person and status
-        todos = todo_service.list(person_id=person.entity_id, status=args['status'])
+        todos = todo_service.filter_todo(person_id=person.entity_id, status=args['status'])
         return get_success_response(todos=[todo.as_dict() for todo in todos])
 
     @login_required()
@@ -62,7 +62,7 @@ class TodoItem(Resource):
         # Ensure the required fields (active or is_deleted) are passed in the request and apply updates
         update_data = {}
         if 'is_deleted' in data:
-            update_data['active'] = data['is_deleted']
+            update_data['active'] = not data['is_deleted']
         if 'is_completed' in data:
             update_data['is_completed'] = data['is_completed']
         if 'title' in data and data['title']:
@@ -78,28 +78,28 @@ class TodoItem(Resource):
         return get_success_response(todo=updated_todo.as_dict())
 
 
-@todo_api.route('/bulk/activate')
+@todo_api.route('/mark-all-as-pending')
 class MarkAllActive(Resource):
     @login_required()
     def post(self, person):
         # Call the service to update the status of all todos to active
-        todos = todo_service.update_status_bulk(person.entity_id, active=True)
-        return get_success_response(updated=len(todos))
+        updated = todo_service.mark_all_as_pending(person.entity_id)
+        return get_success_response(updated=updated)
 
 
-@todo_api.route('/bulk/deactivate')
+@todo_api.route('/mark-all-as-completed')
 class MarkAllInactive(Resource):
     @login_required()
     def post(self, person):
         # Call the service to update the status of all todos to inactive
-        todos = todo_service.update_status_bulk(person.entity_id, active=False)
-        return get_success_response(updated=len(todos))
+        updated = todo_service.mark_all_as_completed(person.entity_id)
+        return get_success_response(updated=updated)
 
 
-@todo_api.route('/bulk/delete')
+@todo_api.route('/clear-completed')
 class MarkAllDeleted(Resource):
     @login_required()
-    def post(self, person):
+    def delete(self, person):
         # Call the service to mark all todos as deleted
-        todos = todo_service.update_status_bulk(person.entity_id, is_deleted=True)
-        return get_success_response(updated=len(todos))
+        deleted = todo_service.clear_completed(person.entity_id)
+        return get_success_response(updated=deleted)

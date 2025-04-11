@@ -99,7 +99,8 @@ class AuthService:
         return password_reset_url
 
     def prepare_email_verification_url(self, login_method: LoginMethod, email: str):
-        token, uid = self.generate_email_verification_token(login_method, email)
+        token = self.generate_email_verification_token(login_method, email)
+        uid = urlsafe_base64_encode(force_bytes(login_method.entity_id))
         email_verification_url = self.config.VUE_APP_URI + "/verify-email/" + token + "/" + uid
         return email_verification_url
 
@@ -187,7 +188,7 @@ class AuthService:
         if not person:
             raise APIException("Person does not exist.")
 
-        login_method = self.login_method_service.get_login_method_by_email_id(email.entity_id)
+        login_method = self.login_method_service.get_login_method_by_email_id(email_obj.entity_id)
         if not login_method:
             raise APIException("Login method does not exist.")
 
